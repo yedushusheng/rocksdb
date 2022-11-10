@@ -43,6 +43,10 @@
 #include "util/stop_watch.h"
 #include "util/thread_local.h"
 
+/** NOTE:flush接口封装 
+ * 主要作用就是flush memtable to disk
+ * https://blog.csdn.net/Gloria_y/article/details/122771974
+*/
 namespace ROCKSDB_NAMESPACE {
 
 class DBImpl;
