@@ -22,6 +22,9 @@
 #include "test_util/sync_point.h"
 #include "util/aligned_buffer.h"
 
+/** NOTE:IO操作接口
+ * https://youjiali1995.github.io/rocksdb/io/
+*/
 namespace ROCKSDB_NAMESPACE {
 class Statistics;
 class SystemClock;

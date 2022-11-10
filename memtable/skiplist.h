@@ -38,6 +38,10 @@
 #include "port/port.h"
 #include "util/random.h"
 
+/** NOTE:跳表
+ * SkipList本质上是一个带有分层的有序链表
+ * https://www.cnblogs.com/xueqiuqiu/articles/8453927.html
+ */
 namespace ROCKSDB_NAMESPACE {
 
 template<typename Key, class Comparator>
@@ -65,6 +69,9 @@ class SkipList {
   // Return estimated number of entries smaller than `key`.
   uint64_t EstimateCount(const Key& key) const;
 
+  /** NOTE:用来迭代SkipList的迭代器
+   * SkipList的Iterator迭代比较简单,直接从第0层的单链表根据next_[0]顺序迭代
+  */
   // Iteration over the contents of a skip list
   class Iterator {
    public:
@@ -196,6 +203,9 @@ struct SkipList<Key, Comparator>::Node {
   }
 
  private:
+  /** NOTE:存放该节点的next_节点的数组
+   * 数组大小为该节点的height,当调用NewNode()分配内存初始化整个数组
+  */
   // Array of length equal to the node height.  next_[0] is lowest level link.
   std::atomic<Node*> next_[1];
 };
@@ -431,13 +441,21 @@ SkipList<Key, Comparator>::SkipList(const Comparator cmp, Allocator* allocator,
   }
 }
 
+/** NOTE:SkipList的插入
+ * 这个就是Memtable的Add()最后写入Skiplist调用的接口Insert().
+ * 插入的时候随机生成一个高度height,将构造的新的节点从第0层到height层分别插入.
+ * */
 template<typename Key, class Comparator>
 void SkipList<Key, Comparator>::Insert(const Key& key) {
+  /** 这里对连续插入做了优化,prev_[0]记录了上次插入的Node,prev_height_记录了上次插入的最大层数.
+   * 如果新的key大于prev_[0]的值并且小于prev_[0]的Next节点的值,即prev_[0]就是新的key的前节点.
+  */  
   // fast path for sequential insertion
   if (!KeyIsAfterNode(key, prev_[0]->NoBarrier_Next(0)) &&
       (prev_[0] == head_ || KeyIsAfterNode(key, prev_[0]))) {
     assert(prev_[0] != head_ || (prev_height_ == 1 && GetMaxHeight() == 1));
 
+    // NOTE:按照层级将每层的前节点补齐
     // Outside of this method prev_[1..max_height_] is the predecessor
     // of prev_[0], and prev_height_ refers to prev_[0].  Inside Insert
     // prev_[0..max_height - 1] is the predecessor of key.  Switch from
@@ -446,16 +464,19 @@ void SkipList<Key, Comparator>::Insert(const Key& key) {
       prev_[i] = prev_[0];
     }
   } else {
+    // NOTE:逐层查找该key待插入位置的前节点
     // TODO(opt): we could use a NoBarrier predecessor search as an
     // optimization for architectures where memory_order_acquire needs
     // a synchronization instruction.  Doesn't matter on x86
     FindLessThan(key, prev_);
   }
 
+  // NOTE:skiplist不允许重复插入
   // Our data structure does not allow duplicate insertion
   assert(prev_[0]->Next(0) == nullptr || !Equal(key, prev_[0]->Next(0)->key));
 
   int height = RandomHeight();
+  // NOTE:如果当前节点的高度大于最高节点,则高出部分的的前节点都是头节点
   if (height > GetMaxHeight()) {
     for (int i = GetMaxHeight(); i < height; i++) {
       prev_[i] = head_;
@@ -474,11 +495,13 @@ void SkipList<Key, Comparator>::Insert(const Key& key) {
 
   Node* x = NewNode(key, height);
   for (int i = 0; i < height; i++) {
+    // NOTE:从0层开始插入,直到height层,原理就是简单的链表插入
     // NoBarrier_SetNext() suffices since we will add a barrier when
     // we publish a pointer to "x" in prev[i].
     x->NoBarrier_SetNext(i, prev_[i]->NoBarrier_Next(i));
     prev_[i]->SetNext(i, x);
   }
+  // NOTE:这里记录了插入的节点和height,为了连续插入做优化
   prev_[0] = x;
   prev_height_ = height;
 }

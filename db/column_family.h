@@ -560,6 +560,10 @@ class ColumnFamilyData {
 
   WriteBufferManager* write_buffer_manager_;
 
+  /**
+   * @brief 在一个column family中,
+   * 维护一个Memtable数据结构mem_和一个Immutable Memtable的列表imm_
+   */
   MemTable* mem_;
   MemTableList imm_;
   SuperVersion* super_version_;

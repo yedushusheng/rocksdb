@@ -54,6 +54,9 @@
 #include "table/multiget_context.h"
 #include "trace_replay/block_cache_tracer.h"
 
+/** NOTE:数据版本控制
+ * 
+*/
 namespace ROCKSDB_NAMESPACE {
 
 namespace log {

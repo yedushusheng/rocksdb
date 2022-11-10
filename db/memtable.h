@@ -32,6 +32,10 @@
 #include "util/dynamic_bloom.h"
 #include "util/hash.h"
 
+/** NOTE:封装Memtable的接口
+ * https://www.cnblogs.com/xueqiuqiu/articles/10111070.html
+ * https://www.cnblogs.com/xueqiuqiu/articles/8455202.html
+ */
 namespace ROCKSDB_NAMESPACE {
 
 struct FlushJobInfo;
@@ -87,7 +91,7 @@ class MemTable {
  public:
   struct KeyComparator : public MemTableRep::KeyComparator {
     const InternalKeyComparator comparator;
-    explicit KeyComparator(const InternalKeyComparator& c) : comparator(c) { }
+    explicit KeyComparator(const InternalKeyComparator& c) : comparator(c) {}
     virtual int operator()(const char* prefix_len_key1,
                            const char* prefix_len_key2) const override;
     virtual int operator()(const char* prefix_len_key,
@@ -148,8 +152,8 @@ class MemTable {
 
   // used by MemTableListVersion::MemoryAllocatedBytesExcludingLast
   size_t MemoryAllocatedBytes() const {
-    return table_->ApproximateMemoryUsage() + 
-           range_del_table_->ApproximateMemoryUsage() + 
+    return table_->ApproximateMemoryUsage() +
+           range_del_table_->ApproximateMemoryUsage() +
            arena_.MemoryAllocatedBytes();
   }
 
@@ -436,9 +440,7 @@ class MemTable {
   // persisted.
   // REQUIRES: external synchronization to prevent simultaneous
   // operations on the same MemTable.
-  void MarkFlushed() {
-    table_->MarkFlushed();
-  }
+  void MarkFlushed() { table_->MarkFlushed(); }
 
   // return true if the current MemTableRep supports merge operator.
   bool IsMergeOperatorSupported() const {
@@ -515,6 +517,10 @@ class MemTable {
   const size_t kArenaBlockSize;
   AllocTracker mem_tracker_;
   ConcurrentArena arena_;
+  /** NOTE:
+   * 在一个Memtable中维护两个SkipList
+   * 其中范围删除插入range_del_table_,其余的操作写入table_
+   */
   std::unique_ptr<MemTableRep> table_;
   std::unique_ptr<MemTableRep> range_del_table_;
   std::atomic_bool is_range_del_table_empty_;
@@ -528,8 +534,8 @@ class MemTable {
   std::atomic<size_t> write_buffer_size_;
 
   // These are used to manage memtable flushes to storage
-  bool flush_in_progress_; // started the flush
-  bool flush_completed_;   // finished the flush
+  bool flush_in_progress_;  // started the flush
+  bool flush_completed_;    // finished the flush
   uint64_t file_number_;    // filled up after flush is complete
 
   // The updates to be applied to the transaction log when this

@@ -151,6 +151,10 @@ void WriteBufferManager::BeginWriteStall(StallInterface* wbm_stall) {
   }
 }
 
+/** NOTE:外部接口
+ * 调用:
+ * include/rocksdb/write_buffer_manager.h/SetBufferSize
+*/
 // Called when memory is freed in FreeMem or the buffer size has changed.
 void WriteBufferManager::MaybeEndWriteStall() {
   // Cannot early-exit on !enabled() because SetBufferSize(0) needs to unblock
@@ -181,6 +185,10 @@ void WriteBufferManager::MaybeEndWriteStall() {
   cleanup = std::move(queue_);
 }
 
+/** NOTE:外部接口
+ * 调用:
+ * db/db_impl/db_impl.cc/DBImpl::CloseHelper
+*/
 void WriteBufferManager::RemoveDBFromQueue(StallInterface* wbm_stall) {
   assert(wbm_stall != nullptr);
 

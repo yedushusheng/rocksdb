@@ -26,6 +26,10 @@
 #include "rocksdb/transaction_log.h"
 #include "rocksdb/types.h"
 
+/** NOTE:WAL接口封装
+ * https://youjiali1995.github.io/rocksdb/wal/
+ * https://zhuanlan.zhihu.com/p/343323703
+*/
 namespace ROCKSDB_NAMESPACE {
 
 #ifndef ROCKSDB_LITE

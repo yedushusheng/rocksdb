@@ -24,6 +24,9 @@
 #include "rocksdb/write_batch.h"
 #include "util/autovector.h"
 
+/** NOTE:Write Batch接口
+ * https://youjiali1995.github.io/rocksdb/write-batch/
+*/
 namespace ROCKSDB_NAMESPACE {
 
 class WriteThread {

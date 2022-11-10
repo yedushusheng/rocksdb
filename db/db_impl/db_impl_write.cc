@@ -1660,8 +1660,8 @@ Status DBImpl::TrimMemtableHistory(WriteContext* context) {
   }
   for (auto& cfd : cfds) {
     autovector<MemTable*> to_delete;
-    bool trimmed = cfd->imm()->TrimHistory(
-        &context->memtables_to_free_, cfd->mem()->MemoryAllocatedBytes());
+    bool trimmed = cfd->imm()->TrimHistory(&context->memtables_to_free_,
+                                           cfd->mem()->MemoryAllocatedBytes());
     if (trimmed) {
       context->superversion_context.NewSuperVersion();
       assert(context->superversion_context.new_superversion.get() != nullptr);
@@ -1731,6 +1731,10 @@ Status DBImpl::ScheduleFlushes(WriteContext* context) {
 }
 
 #ifndef ROCKSDB_LITE
+/** NOTE:内部函数
+ * 调用:
+ * DBImpl::SwitchMemtable
+ */
 void DBImpl::NotifyOnMemTableSealed(ColumnFamilyData* /*cfd*/,
                                     const MemTableInfo& mem_table_info) {
   if (immutable_db_options_.listeners.size() == 0U) {
@@ -1750,6 +1754,9 @@ void DBImpl::NotifyOnMemTableSealed(ColumnFamilyData* /*cfd*/,
 // REQUIRES: this thread is currently at the front of the writer queue
 // REQUIRES: this thread is currently at the front of the 2nd writer queue if
 // two_write_queues_ is true (This is to simplify the reasoning.)
+/** NOTE:外部接口
+ * 将Memtable转换为Immutable Memtable
+ */
 Status DBImpl::SwitchMemtable(ColumnFamilyData* cfd, WriteContext* context) {
   mutex_.AssertHeld();
   log::Writer* new_log = nullptr;
@@ -1807,6 +1814,17 @@ Status DBImpl::SwitchMemtable(ColumnFamilyData* cfd, WriteContext* context) {
     }
   }
   if (s.ok()) {
+    /**
+     * NOTE:
+     * 当达到限定条件,需要将Memtable转为Immutable Memtable时:
+     * 首先构造一个新的Memtable,然后将旧的Memtable添加至imm_,增加新的Memtable的引用计数,
+     * 最后将新的Memtable添加至column family:
+     * new_mem = cfd->ConstructNewMemtable(mutable_cf_options, seq);
+     * // ...
+     * cfd->imm()->Add(cfd->mem(), &context->memtables_to_free_);
+     * new_mem->Ref();
+     * cfd->SetMemtable(new_mem);
+     */
     SequenceNumber seq = versions_->LastSequence();
     new_mem = cfd->ConstructNewMemtable(mutable_cf_options, seq);
     context->superversion_context.NewSuperVersion();
@@ -1935,6 +1953,11 @@ Status DBImpl::SwitchMemtable(ColumnFamilyData* cfd, WriteContext* context) {
 
   cfd->mem()->SetNextLogNumber(logfile_number_);
   assert(new_mem != nullptr);
+  /**
+   * NOTE:将旧的Memtable添加至imm_,
+   * 增加新的Memtable的引用计数,
+   * 最后将新的Memtable添加至column family
+   */
   cfd->imm()->Add(cfd->mem(), &context->memtables_to_free_);
   new_mem->Ref();
   cfd->SetMemtable(new_mem);

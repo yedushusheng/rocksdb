@@ -53,8 +53,18 @@
 #include "util/coding.h"
 #include "util/random.h"
 
+/** NOTE:
+ * https://www.cnblogs.com/xueqiuqiu/articles/10174771.html
+ * RocksDB实现了多种可作为memtable的数据结构,包括SkipList、HashSkipList、HashLinkList和Vector,可根据场景选择合适的种类.
+ * memtable有3层封装:
+ * InlineSkipList:最底层的数据结构,提供最基本的读写操作.
+ * SkipListRep:MemTableRep的派生类,提供多态.
+ * MemTable:提供更多功能.
+ * InlineSkipList除了支持一写多读,还支持了多写多读,并对插入操作进行了优化.
+*/
 namespace ROCKSDB_NAMESPACE {
 
+/** NOTE:之所以叫InlineSkipList,应该是因为Node将key和链表每层的指针连续存储 */
 template <class Comparator>
 class InlineSkipList {
  private:
